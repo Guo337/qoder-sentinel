@@ -55,6 +55,34 @@ python guard\run_task.py -- "总结当前目录结构"
 python guard\install_hooks.py --remove   # 移除 hooks（同样会先备份）
 ```
 
+### 只监管某一个项目（项目级安装）
+
+用户级安装是「全机器生效」；如果你只想让**某个项目**受监管，用项目级安装器：
+
+```powershell
+python guard\install_project.py --target "C:\path\to\other-project"
+python guard\install_project.py --target "C:\path\to\other-project" --check
+python guard\install_project.py --target "C:\path\to\other-project" --remove
+```
+
+它把 hook 写进 `<target>\.qoder\settings.json`，命令是**指向本仓库的绝对路径**，
+而 `observe_hook.py` 用自身路径定位项目根，所以审计数据始终落回**本仓库**，
+与 Qoder 在哪个目录启动无关（已端到端实测）。特性：
+
+| 选项 | 作用 |
+|------|------|
+| （默认） | 安装/更新，先备份为 `settings.json.bak-<时间戳>` |
+| `--check` | 只报告漂移（未注册 / 路径不存在 / 指向别的 checkout / 命令过期），有漂移退出 1 |
+| `--dry-run` | 打印计划，**零写入** |
+| `--remove` | 只删本项目的条目，**外来 hook 原样保留** |
+| `--json` | 机器可读输出 |
+
+行为要点：重复安装**幂等**；命令路径变化（如仓库搬家）会被**修复**而不是误报
+「无需操作」；settings 带 UTF-8 BOM 也能读。回归契约见
+`tools\_probe_project_install.py`（30 项）。
+
+> 注意：hook 命令由 **Git Bash** 执行，`uv`/`python` 必须在 bash 的 PATH 里。
+
 ---
 
 ## 一、实测事实（2026-09-08，Qoder CLI v1.1.45）
@@ -153,6 +181,7 @@ qoder-sentinel/
 ├─ guard/
 │  ├─ observe_hook.py        hook 入口（Qoder 调用）
 │  ├─ install_hooks.py       安装/自检/卸载 hooks（动态解析路径）
+│  ├─ install_project.py     项目级安装器（写目标项目 .qoder/settings.json）
 │  ├─ run_task.py            受监管任务驱动（stream-json 事件转述）
 │  ├─ audit_view.py          审计面板（时间线/风险分布/会话筛选）
 │  ├─ review.py              UNKNOWN 审批 CLI（list/show/approve/deny/stats）⭐ 新增
@@ -444,3 +473,96 @@ B4（会话白名单，0.5d）
 
 `reference/` 目录存放上游源码的**只读逐字副本**（仅用于对照，运行时不导入），
 其说明见 [`reference/README.md`](reference/README.md)。
+
+---
+
+## 七、相关项目
+
+同赛道已有若干成熟项目，本项目与它们的关系如下。**数据截至 2026-09-09**，
+星标数与许可证均以各仓库主页为准。
+
+### 7.1 同类工具（跨 CLI 通用守卫）
+
+| 项目                                                                 | 星标 | 语言       | 许可证      | 与本项目的关系                                                                                                                                                                                                                      |
+|----------------------------------------------------------------------|------|------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [cc-safety-net](https://github.com/kenryu42/cc-safety-net)           | 1532 | TypeScript | MIT         | **最接近**。执行前拦截破坏性 git/文件命令与敏感文件访问，支持 13 个 CLI 适配器，但**不含 Qoder**。其 hook 入口为 `hook --coding-cli`，属多 CLI 适配器架构                                                                              |
+| [shellfirm](https://github.com/kaplanelad/shellfirm)                 | 930  | Rust       | Apache-2.0  | 100+ 危险模式、8 种 shell（含 PowerShell）、上下文升级、团队策略文件、JSONL 审计，自带 MCP server                                                                                                                                     |
+| [claude-code-guardrails](https://github.com/rulebricks/claude-code-guardrails) | 79   | Python     | MIT         | Claude Code 工具调用的实时护栏                                                                                                                                                                                                        |
+| [aport-agent-guardrails](https://github.com/aporthq/aport-agent-guardrails)    | 25   | Shell      | 自定义      | 执行前授权，覆盖 openclaw/cursor/claude-code/langchain/crewai/n8n，**不含 Qoder**                                                                                                                                                   |
+
+### 7.2 Qoder 专属项目
+
+| 项目                                                     | 星标 | 语言       | 许可证      | 与本项目的关系                                                                                                                                                                                                                                                                                          |
+|----------------------------------------------------------|------|------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [anolisa](https://github.com/alibaba/anolisa)            | 608  | Rust       | Apache-2.0  | **唯一重量级 Qoder 玩家**。其 `src/agent-sec-core/qoder-plugin/` 提供 5 个 hook（命令扫描 / PII 检查 / 提示注入扫描 / Skill 台账 / 可观测性），覆盖 6 类事件。定位是广义 Agent 安全套件，**无风险分级与审批队列**；安装脚本依赖 bash 与自家 `agent-sec-cli`，当前为 Linux 专用                              |
+| [Oscaner/skills](https://github.com/Oscaner/skills)      | 78   | JavaScript | MIT         | 含 Qoder PreToolUse 适配器                                                                                                                                                                                                                                                                              |
+| [openlogos](https://github.com/miniidealab/openlogos)    | 72   | TypeScript | Apache-2.0  | 含 PreToolUse 守卫规范与 Qoder 适配器规划                                                                                                                                                                                                                                                               |
+
+### 7.3 本项目的差异
+
+**本项目独有**：
+
+- 四档风险分级（HIGH / MEDIUM / LOW / **UNKNOWN**），基于命令语法结构（tree-sitter）
+  而非纯正则匹配
+- UNKNOWN 的两层处理：静态降级 + 文件队列交由监督方审批
+- 审批队列的**指纹缓存**：同一条命令只询问一次，避免反复打断
+
+**本项目的短板**（相比 cc-safety-net / shellfirm）：
+
+- 仅支持 Windows，仅面向 Qoder CLI
+- 无 GUI、无规则库、无团队策略共享，无 MCP 暴露
+- 危险模式数量远少于 shellfirm
+
+**边界说明**：本项目聚焦「执行前风险分级 + 审批」，与上述项目在目标上部分重叠
+但侧重不同。选择哪个取决于你用哪个 CLI、跑在什么平台。
+
+### 7.4 与 Qoder 官方插件的关系（实测 2026-09-09）
+
+Qoder 自带两个安全相关插件，覆盖面与本项目**互补而非重叠**：
+
+| 官方插件 | 挂载点 | 实际覆盖 | 不覆盖 |
+|----------|--------|----------|--------|
+| `security-scan`（Qoder Security 0.8.9） | `PostToolUse`，matcher `Edit\|Write\|MultiEdit\|NotebookEdit` | 文件**内容**里的凭据与漏洞模式 | **命令执行完全不匹配** |
+| `better-harness`（0.2.9，上游 [QoderAI/better-harness](https://github.com/QoderAI/better-harness) 0.7.0-alpha1，MIT） | `Stop`（事后） | 工作闭环 5 维度 15 项审查报告 | 不做执行前拦截 |
+
+`better-harness` 另提供一个可选的 `PreToolUse` 守卫
+（`scripts/agent-guardrails/install-secret-guard.mjs`），但它只拦**凭据类**操作：
+命令中含疑似密钥、读取 `.env`/`id_rsa`/`*.pem`、`printenv`/`env`、`kubectl config view --raw`。
+对 `rm -rf`、`git push --force`、`diskpart`、`mkfs` 等**危险命令零覆盖**
+（对 GitHub main 版逐词检索命中数均为 0）。
+
+因此分工是：
+
+- **官方**：凭据外泄防护 + 事后闭环审查
+- **本项目**：命令执行**前**的风险分级与审批（含语法树解析、UNKNOWN 降级、指纹缓存）
+
+两者可同时启用，互不冲突。
+
+### 7.5 Qoder 项目级 hook 的加载条件（实测 2026-09-09）
+
+给 `.qoder/settings.json` 注册 hook 后，**它确实会加载并执行**，但要同时满足两个条件：
+
+1. **来源被允许**：`--setting-sources` 需包含 `project`（或 `local`）。不在列表里会被跳过。
+2. **文件夹受信任**：`project` / `local` 级 hook 要求文件夹受信任；`user` / `flag` 级不要求。
+
+信任判定优先级：
+
+```
+IDE 传递的 workspaceState.isTrusted
+  → security.folderTrust.enabled（默认 true；设为 false 则视为全部信任）
+  → permissions.trustDirectories / additionalDirectories（路径前缀匹配，取最长）
+```
+
+**非交互模式自动视为信任**：`-p` / `--print` / stdin 非 TTY / `CI=true` / `GITHUB_ACTIONS=true`。
+所以脚本化探测时不需要额外处理信任。
+
+两个容易踩的坑：
+
+- **`-o stream-json` 默认不输出 hook 事件**，看不到 ≠ 没执行。需要加 `--include-hook-events`，
+  或者直接读运行日志 `~/.qoder-cn/logs/runs/<时间>-<pid>/qodercli.log`
+  （含 `hook.started` / `hook.finished`、`source`、`exit_code`、stderr）。
+- **hook 命令由 Git Bash 执行**（不是 cmd），因此 `node`、`python` 等必须在 **bash 的 PATH** 里。
+  官方 `install-secret-guard.mjs` 注册的是 `node ".qoder/hooks/secret-scan.mjs"`，
+  本机若无 Node.js 会稳定 `exit_code=127`（`node: command not found`），
+  而且**失败是非阻塞的**——日志只警告 `Non-blocking hook error(s) ... Continuing execution`，
+  守卫静默失效。装好 Node.js 后实测两个 hook 均 `success=true exit_code=0`。
