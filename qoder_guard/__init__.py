@@ -10,4 +10,4 @@ without blocking.
 Stage B (next): block -- risk assessment + tiered gate + impact pre-analysis.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.3"
