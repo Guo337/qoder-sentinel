@@ -1,6 +1,7 @@
 """Tree-sitter AST layer for shell command analysis.
 
 Portions ported from OpenHands software-agent-sdk (MIT License).
+Copyright (c) 2026 OpenHands contributors
 Source: openhands/sdk/security/shell_parser.py, .../_shell_ast.py
 See THIRD_PARTY_LICENSES.md.
 """

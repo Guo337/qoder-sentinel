@@ -18,7 +18,7 @@
 | 路径 | 来源 | 许可证 | 说明 |
 |------|------|--------|------|
 | `LICENSE-OpenHands-software-agent-sdk.txt` | [OpenHands/software-agent-sdk](https://github.com/OpenHands/software-agent-sdk) | MIT | 上游许可证全文，逐字节副本 |
-| `openhands/*.py` | 同上（`openhands-sdk/openhands/sdk/security/`） | MIT | 7 个源文件逐字副本：`risk.py`、`analyzer.py`、`confirmation_policy.py`、`ensemble.py`、`llm_analyzer.py`、`shell_parser.py`、`_shell_ast.py`、`__init__.py` |
+| `openhands/*.py` | 同上（`openhands-sdk/openhands/sdk/security/`） | MIT | 8 个源文件逐字副本：`risk.py`、`analyzer.py`、`confirmation_policy.py`、`ensemble.py`、`llm_analyzer.py`、`shell_parser.py`、`_shell_ast.py`、`__init__.py` |
 
 ## 为什么留在这里
 
