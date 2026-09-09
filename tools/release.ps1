@@ -43,6 +43,17 @@ try {
     $dist = Join-Path $root "dist"
     $zip = Join-Path $dist "$name.zip"
 
+    # The released version must match pyproject.toml, or the tag and the
+    # metadata inside the archive disagree. This drifted once (pyproject
+    # stayed at 0.1.0 while v0.1.2 shipped), so it is checked, not trusted.
+    $pyproject = Join-Path $root "pyproject.toml"
+    $declared = (Select-String -Path $pyproject -Pattern '^version\s*=\s*"([^"]+)"' |
+                 Select-Object -First 1).Matches[0].Groups[1].Value
+    $expected = $tag.TrimStart("v")
+    if ($declared -ne $expected) {
+        throw "pyproject.toml declares version $declared but this release is $expected. Update pyproject.toml first."
+    }
+
     # Refuse to package a dirty tree: the zip must match a commit exactly.
     $dirty = git status --porcelain
     if ($dirty) {
