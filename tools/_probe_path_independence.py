@@ -58,8 +58,8 @@ SKIP_DIRS = {".git", ".venv", "__pycache__", "audit_logs",
 # placeholder used in documentation.
 #
 # This deliberately does NOT require a quote before the path. The earlier
-# pattern did, and therefore missed the very case it was written for:
-# `("Bash", {"command": r"rm -rf C:\\Users\\Guo\\temp"})` has the path in the
+# pattern did, and therefore missed the very case it was written for: a
+# command payload like `rm -rf C:\\Users\\<account>\\temp` has the path in the
 # MIDDLE of a string literal, so three real occurrences survived a "clean"
 # scan. An exemption (the placeholder whitelist) must always be re-tested
 # against a counter-example.

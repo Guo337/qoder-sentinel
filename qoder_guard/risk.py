@@ -16,6 +16,16 @@ Note: the rule table is only a first coarse filter, not the sole basis. Real
 impact analysis ("this command will delete 12 files") is added in stage B via
 dry-run style pre-analysis.
 """
+# ---------------------------------------------------------------------------
+# Portions ported from OpenHands software-agent-sdk (MIT License).
+# Copyright (c) 2026 OpenHands contributors
+# Source: openhands-sdk/openhands/sdk/security/risk.py
+#
+# The RiskLevel comparison operators below are PORTED code, not merely an
+# inspired design; the error message is identical to upstream. See
+# THIRD_PARTY_LICENSES.md for the exact correspondence and for the two places
+# where this project deliberately grades differently.
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import re

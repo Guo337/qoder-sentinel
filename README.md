@@ -399,7 +399,9 @@ B4（会话白名单，0.5d）
 
 ## 五、开发约定
 
-- 监管核心 `qoder_guard/` **零第三方依赖**（纯标准库），便于随处部署
+- 监管核心 `qoder_guard/` 的第三方依赖**只有一个可选库**：`tree-sitter`（MIT，
+  `uv sync` 自动安装）。其余全部是 Python 标准库。`tree-sitter` 缺失时
+  `shell_ast.AVAILABLE` 置 False，自动退回纯正则模式，**监控不中断**
 - 审计日志一律 UTF-8；**PowerShell 5.1 读它必须 `-Encoding UTF8`**，
   否则中文乱码（本项目踩过，曾被误判为"代码 bug"）
 - hook 绝不可因自身异常阻断任务：解析失败也要返回 0
@@ -413,3 +415,32 @@ B4（会话白名单，0.5d）
 - 代码内文案（注释/docstring/日志）**统一用英文**：Windows 控制台 GBK
   与 UTF-8 中文冲突是本项目多次故障的根源，英文可彻底绕开
 - 改动风险规则后跑 `python guard\verify_setup.py` 确认断言全绿
+
+---
+
+## 六、许可证与第三方来源
+
+本项目以 **MIT 许可证**发布，全文见 [`LICENSE`](LICENSE)。
+
+### 第三方来源
+
+| 来源 | 许可证 | 使用方式 |
+|------|--------|----------|
+| [OpenHands software-agent-sdk](https://github.com/OpenHands/software-agent-sdk) | MIT | `qoder_guard/shell_ast.py` 移植部分实现；`qoder_guard/risk.py` 的 `RiskLevel` 比较运算符为**移植**；风险分析与确认策略**分层**、`UNKNOWN` 等级、`opaque` 标记为**设计借鉴** |
+| [tree-sitter](https://github.com/tree-sitter/tree-sitter) / [tree-sitter-bash](https://github.com/tree-sitter/tree-sitter-bash) | MIT | 运行时依赖（命令语法树解析） |
+
+**逐文件对应关系、移植范围与「故意偏离上游」的说明，见
+[`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。**
+
+### 明确未采用
+
+`idank/bashlex` 为 **GPL-3.0**，与本项目的 MIT 许可证不兼容 ——
+**未复制其任何代码，也未作为依赖**（评估记录见 `THIRD_PARTY_LICENSES.md` 第 4 节）。
+
+### 移植代码的归属声明
+
+凡移植了上游 MIT 代码的源文件，**文件头均带有上游版权与许可证声明**：
+`qoder_guard/shell_ast.py`、`qoder_guard/risk.py`。
+
+`reference/` 目录存放上游源码的**只读逐字副本**（仅用于对照，运行时不导入），
+其说明见 [`reference/README.md`](reference/README.md)。
