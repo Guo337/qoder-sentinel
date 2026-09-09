@@ -16,6 +16,16 @@
 | 脚本 | 作用 |
 |------|------|
 | `parse_events.py` | 解析 `-o stream-json` 输出，打印事件类型与关键内容 |
+| `_hook_report.py` | 逐个 hook 报告 `exit_code` 与 stdout/stderr，快速定位 hook 失败（自动嗅探 UTF-16/UTF-8 编码） |
+| `_summarize_stream.py` | 每个流事件一行摘要，并转储含 probe/security/warning 的块 |
+| `_inspect_l1.py` / `_dump_l1_events.py` / `_extract_l1_warning.py` | Qoder Security L1 警告排查三件套（事件、全量转储、文本提取） |
+| `_plugin_audit.py` | 跨 `settings.json` 备份审计插件开关与 `securityScan` 标志 |
+| `enable_security_scan.py` | 启用 Qoder Security（默认 dry-run，`--apply` 才写入，自动备份） |
+| `_gh.py` | 调 `gh api` 并打印选中字段，规避 PowerShell 参数拆分 |
+| `_code_stats.py` | 统计自有/移植代码量与依赖 |
+| `_count_rules.py` | 统计 `risk.py` / `sensitive.py` 的规则条数 |
+| `_compare_harness.py` | 对比官方 better-harness 与本项目的清单差异 |
+| `_probe_project_install.py` | `guard/install_project.py` 的注册契约（dry-run / check / 幂等 / 保留外来 hook / 修复陈旧路径 / BOM / remove / json / 不碰用户配置） | `all checks passed` |
 
 ## 用法
 
@@ -55,8 +65,16 @@ python tools\parse_events.py out.jsonl
 | `_probe_audit_concurrency.py` | 4 进程 × 50 次 `audit.append()` | 200/200 records |
 | `_probe_sqlite.py` | SQLite 写入原语实测（4/8/16 进程） | `0 failing configuration(s)` |
 | `_probe_audit_isolation.py` | 跑全部测试后生产库行数不变 | `all assertions passed` |
+| `_probe_sensitive.py` | 敏感数据扫描器单元契约（17 规则、span 合法、去重、脱敏往返、10 误报 / 6 真阳性、ReDoS 与吞吐） | `all checks passed` |
+| `_probe_sensitive_hook.py` | 敏感数据接入 hook 的端到端契约（HIGH 拒绝 / observe 放行 / 审计脱敏 / `Write.content` 不拦但脱敏 / 原有危险判定不受影响） | `all checks passed` |
+| `_probe_project_install.py` | 项目级安装器契约（11 组 30 项，全部在临时目录内完成） | `all checks passed` |
+| `_count_rules.py` | 规则条数统计（`risk.py` 26 条 + `sensitive.py` 17 类） | 正常打印计数 |
+| `_compare_harness.py` | 官方 better-harness 清单对比 | 正常打印差异 |
 | `_probe_append_mechanism.py` | 历史记录：对比追加写原语（text / oswrite / msvcrt） | 仅 msvcrt 无丢失 |
 | `_probe_append_lock.py` | 历史记录：4 种原语 × 4/8/12/16 进程压力测试 | `msvcrt` 行显示 OK |
+
+> `_hook_report.py` 需要传入一个 stream-json 捕获文件，因此**不进入无参回归循环**：
+> `python tools\_hook_report.py <capture.json>`
 
 一键跑法：
 
@@ -67,7 +85,8 @@ uv run python tools\_probe_structural_escapes.py   # 单跑
 
 # 全量回归（每个脚本退出码 0 即通过）
 foreach($f in @("qoder_guard\_store.py","qoder_guard\shell_tokens.py",
-  "qoder_guard\policy.py","qoder_guard\review.py","guard\verify_setup.py",
+  "qoder_guard\policy.py","qoder_guard\review.py","qoder_guard\sensitive.py",
+  "guard\verify_setup.py",
   "tools\_verify_behavior.py","tools\_verify_i18n.py","tools\_e2e_hook.py",
   "tools\_probe_debug.py","tools\_probe_whitelist.py",
   "tools\_probe_upstream_parity.py","tools\_probe_rm_shape.py",
@@ -76,7 +95,9 @@ foreach($f in @("qoder_guard\_store.py","qoder_guard\shell_tokens.py",
   "tools\_probe_path_independence.py",
   "tools\_probe_uv_run_hook.py","tools\_probe_sqlite.py",
   "tools\_probe_concurrency.py","tools\_probe_audit_concurrency.py",
-  "tools\_probe_audit_isolation.py")){ uv run python $f *> $null
+  "tools\_probe_audit_isolation.py","tools\_probe_sensitive.py",
+  "tools\_probe_sensitive_hook.py","tools\_count_rules.py",
+  "tools\_compare_harness.py","tools\_probe_project_install.py")){ uv run python $f *> $null
   Write-Output ("{0,-38} exit={1}" -f $f,$LASTEXITCODE) }
 ```
 
