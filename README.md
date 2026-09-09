@@ -64,7 +64,14 @@ python guard\run_task.py -- "总结当前目录结构"
 |------|------|
 | `-Dir <路径>` | 指定安装目录（默认 `%LOCALAPPDATA%\qoder-sentinel`） |
 | `-NoVerify` | 跳过安装后的自检 |
-| `-Uninstall` | 移除注册的 hooks（保留文件） |
+| `-NoRegister` | 只装文件，不注册 hooks |
+| `-Shortcut` | 额外创建**桌面快捷方式**，双击直接打开审计面板 |
+| `-StartMenu` | 额外创建**开始菜单快捷方式** |
+| `-Uninstall` | 移除注册的 hooks（保留文件）和已创建的快捷方式 |
+
+快捷方式用 `pythonw.exe` 启动，**不会闪出黑色控制台窗口**；工作目录设为安装
+目录，所以双击时无论从哪启动都能找到代码。`-Uninstall` 会一并删除桌面与开始
+菜单里名为 `Qoder Sentinel Audit.lnk` 的快捷方式（你自己改过名的不会被误删）。
 
 uv 缺失时脚本会尝试用 `winget` 自动安装；两者都没有则明确报错并给出下载地址，
 不会留下半装状态。
@@ -251,6 +258,10 @@ python guard\audit_gui.py               # 按风险/工具/会话/关键词筛�
 # 6) 图形界面（安装器，等价于 install.ps1）
 python guard\install_gui.py             # 点按钮安装/升级/卸载，输出实时回显
 ```
+
+> 安装器 GUI 里有 **“Create a desktop shortcut”** 和 **“Create a Start menu
+> shortcut as well”** 两个勾选项，对应 `install.ps1 -Shortcut` / `-StartMenu`。
+> 快捷方式用 `pythonw.exe` 启动审计面板，不会闪控制台窗口。
 
 ### 2.3 启用拦截（阶段 B 前置，已验证）
 

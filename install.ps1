@@ -30,11 +30,21 @@
     you only want the files (for example to register a single project with
     guard\install_project.py instead).
 
+.PARAMETER Shortcut
+    Also create a desktop shortcut that opens the audit panel. The shortcut
+    starts the panel with pythonw.exe, so no console window appears behind it.
+
+.PARAMETER StartMenu
+    Also create a Start menu shortcut that opens the audit panel.
+
 .EXAMPLE
     irm https://raw.githubusercontent.com/Guo337/qoder-sentinel/main/install.ps1 | iex
 
 .EXAMPLE
     .\install.ps1 -Dir "D:\tools\qoder-sentinel"
+
+.EXAMPLE
+    .\install.ps1 -Shortcut -StartMenu
 
 .EXAMPLE
     .\install.ps1 -Uninstall
@@ -50,12 +60,17 @@ param(
     [string]$Dir = "",
     [switch]$Uninstall,
     [switch]$NoVerify,
-    [switch]$NoRegister
+    [switch]$NoRegister,
+    [switch]$Shortcut,
+    [switch]$StartMenu
 )
 
 $ErrorActionPreference = "Stop"
 
 $RepoSlug = "Guo337/qoder-sentinel"
+
+# The shortcut is named once so creation and removal cannot drift apart.
+$ShortcutName = "Qoder Sentinel Audit.lnk"
 
 # PowerShell 5.1 decides whether a native command's stderr is an error BEFORE
 # the command runs, so 2>$null does not suppress it. uv writes progress lines to
@@ -97,6 +112,50 @@ function Get-FreshPath {
            [Environment]::GetEnvironmentVariable("Path", "User")
 }
 
+# pythonw.exe runs without a console window, which is what a GUI shortcut wants.
+# Falls back to nothing when the environment has not been created yet, so the
+# caller can skip the shortcut instead of creating a broken one.
+function Get-WindowlessPython {
+    param([Parameter(Mandatory = $true)][string]$InstallDir)
+    $candidate = Join-Path $InstallDir ".venv\Scripts\pythonw.exe"
+    if (Test-Path $candidate) { return $candidate }
+    return $null
+}
+
+# "New-" is on the ShouldProcess list, so this uses "Register-" instead: the
+# meaning is the same here and no confirmation prompt is wanted.
+function Register-GuardShortcut {
+    param(
+        [Parameter(Mandatory = $true)][string]$Folder,
+        [Parameter(Mandatory = $true)][string]$Target,
+        [Parameter(Mandatory = $true)][string]$InstallDir
+    )
+    if (-not (Test-Path $Folder)) {
+        New-Item -ItemType Directory -Force -Path $Folder | Out-Null
+    }
+    $link = Join-Path $Folder $ShortcutName
+    $shell = New-Object -ComObject WScript.Shell
+    # Not named $shortcut: PowerShell is case insensitive and the caller has a
+    # -Shortcut switch of its own.
+    $lnk = $shell.CreateShortcut($link)
+    $lnk.TargetPath = $Target
+    $lnk.Arguments = "`"$InstallDir\guard\audit_gui.py`""
+    $lnk.WorkingDirectory = $InstallDir
+    $lnk.IconLocation = "$env:SystemRoot\System32\shell32.dll,167"
+    $lnk.Description = "Qoder Sentinel audit panel"
+    $lnk.Save()
+    return $link
+}
+
+# Both shortcut locations are looked up the same way, so removal finds whatever
+# creation made regardless of the language of the OS.
+function Get-ShortcutFolder {
+    return @(
+        [Environment]::GetFolderPath("Desktop"),
+        [Environment]::GetFolderPath("Programs")
+    )
+}
+
 Write-Host ""
 Write-Host "qoder-sentinel installer" -ForegroundColor White
 Write-Host ""
@@ -132,6 +191,17 @@ if ($Uninstall) {
         $code = Invoke-Native { uv run python "guard\install_hooks.py" --remove }
         if ($code -ne 0) { Fail "Removing the hooks failed (exit $code)." }
     } finally { Pop-Location }
+
+    $removed = 0
+    foreach ($folder in Get-ShortcutFolder) {
+        $link = Join-Path $folder $ShortcutName
+        if (Test-Path $link) {
+            Remove-Item $link -Force
+            $removed++
+        }
+    }
+    if ($removed -gt 0) { Info "removed $removed shortcut(s)" }
+
     Write-Host ""
     Write-Host "Hooks removed. The files in $installDir are untouched." -ForegroundColor Green
     Write-Host "Delete that directory to remove them too." -ForegroundColor Green
@@ -264,6 +334,25 @@ if ($NoRegister) {
 }
 
 # -------------------------------------------------------------------- summary
+
+# Shortcuts are opt in. A shortcut is only useful when it can start the panel
+# without a console window, so it is skipped (with a reason) when pythonw.exe
+# is missing -- that happens with -NoRegister, because uv sync may not have run.
+$shortcutTarget = Get-WindowlessPython -InstallDir $installDir
+if ($Shortcut -or $StartMenu) {
+    Step "Shortcuts"
+    if (-not $shortcutTarget) {
+        Info "skipped: no .venv\Scripts\pythonw.exe yet (run the installer without -NoRegister)"
+    } else {
+        $folders = @()
+        if ($Shortcut) { $folders += [Environment]::GetFolderPath("Desktop") }
+        if ($StartMenu) { $folders += [Environment]::GetFolderPath("Programs") }
+        foreach ($folder in $folders) {
+            $link = Register-GuardShortcut -Folder $folder -Target $shortcutTarget -InstallDir $installDir
+            Info $link
+        }
+    }
+}
 
 Write-Host ""
 Write-Host "Done." -ForegroundColor Green

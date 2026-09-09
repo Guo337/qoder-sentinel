@@ -25,6 +25,7 @@ tools/_probe_project_install.py for the settings-mutation contract.
  11. the README points at it
  12. no function uses a state changing verb, which would demand ShouldProcess
  13. the Write-Host rule is suppressed with a justification
+ 14. shortcuts are opt in, windowless, and removed on uninstall
 
 Run:  python tools/_probe_install_script.py   (exit 0 = pass)
 """
@@ -89,7 +90,7 @@ def main() -> int:
           f"{len(non_ascii)} non-ASCII char(s), first={non_ascii[:1]!r}")
 
     # 4. documented parameters
-    for p in ("$Dir", "$Uninstall", "$NoVerify"):
+    for p in ("$Dir", "$Uninstall", "$NoVerify", "$NoRegister", "$Shortcut", "$StartMenu"):
         check(f"param_{p.lstrip('$')}", re.search(rf"\[[^\]]+\]{re.escape(p)}\b", text) is not None,
               f"{p} is not declared as a typed parameter")
 
@@ -159,6 +160,22 @@ def main() -> int:
     check("suppression_is_narrow",
           text.count("SuppressMessageAttribute") == 1,
           "more suppressions than expected")
+
+    # 14. shortcuts: opt in, no console window, and cleaned up on uninstall.
+    #     pythonw.exe is the whole point -- python.exe would flash a console.
+    check("shortcut_helper", "function Register-GuardShortcut" in text,
+          "no shortcut builder")
+    check("shortcut_uses_pythonw", "pythonw.exe" in text,
+          "the shortcut would open a console window")
+    check("shortcut_opt_in",
+          "if ($Shortcut -or $StartMenu)" in text,
+          "shortcuts must not be created unless asked for")
+    check("shortcut_name_shared",
+          text.count("$ShortcutName") >= 3,
+          "create and remove do not share one shortcut name")
+    check("uninstall_removes_shortcut",
+          re.search(r"if \(\$Uninstall\).*?Remove-Item \$link", text, re.DOTALL) is not None,
+          "uninstall leaves the shortcut behind")
 
     return report()
 

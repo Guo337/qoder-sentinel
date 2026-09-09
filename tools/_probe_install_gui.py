@@ -15,6 +15,7 @@ actually come from.
   9. summarize_state is one line per fact and names the settings path
  10. importing the module does not open a window
  11. the GUI never runs the installer at import time
+ 12. the shortcut options are opt in and reach install.ps1
 
 Run:  python tools/_probe_install_gui.py            (headless, exit 0 = pass)
       python tools/_probe_install_gui.py --smoke    (also opens the window)
@@ -90,6 +91,20 @@ def main() -> int:
           str(full))
     check("args_no_duplicates", len(full) == len(set(full)), str(full))
 
+    # 12. shortcut switches: off by default, each maps to its own flag, and they
+    #     come after the existing ones so the stable order is preserved.
+    check("args_shortcut_default_off",
+          "-Shortcut" not in build() and "-StartMenu" not in build(), str(build()))
+    check("args_shortcut", build(shortcut=True) == ["-Shortcut"], str(build(shortcut=True)))
+    check("args_start_menu", build(start_menu=True) == ["-StartMenu"],
+          str(build(start_menu=True)))
+    both = build(shortcut=True, start_menu=True)
+    check("args_shortcut_both", both == ["-Shortcut", "-StartMenu"], str(both))
+    check("args_shortcut_order",
+          build(install_dir="C:\\x", shortcut=True, start_menu=True) ==
+          ["-Dir", "C:\\x", "-Shortcut", "-StartMenu"],
+          str(build(install_dir="C:\\x", shortcut=True, start_menu=True)))
+
     # 5. hook inspection command
     check_cmd = module.hook_command("--check")
     check("hook_cmd_check_flag", check_cmd[-1] == "--check", str(check_cmd))
@@ -161,6 +176,9 @@ def smoke(module) -> None:
         check("smoke_state_shown", bool(panel.state_var.get()), "state panel is empty")
         check("smoke_dir_default", panel.dir_var.get() == str(module.ROOT),
               panel.dir_var.get())
+        check("smoke_shortcut_off", panel.shortcut_var.get() is False and
+              panel.start_menu_var.get() is False,
+              f"shortcut={panel.shortcut_var.get()} startmenu={panel.start_menu_var.get()}")
         check("smoke_buttons_idle",
               str(panel.install_btn["state"]) == "normal" and
               str(panel.stop_btn["state"]) == "disabled",

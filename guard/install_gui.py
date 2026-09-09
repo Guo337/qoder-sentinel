@@ -40,6 +40,8 @@ def build_args(
     uninstall: bool = False,
     no_verify: bool = False,
     no_register: bool = False,
+    shortcut: bool = False,
+    start_menu: bool = False,
 ) -> list[str]:
     """Argument list for install.ps1, in a stable order.
 
@@ -55,6 +57,10 @@ def build_args(
         args.append("-NoVerify")
     if no_register:
         args.append("-NoRegister")
+    if shortcut:
+        args.append("-Shortcut")
+    if start_menu:
+        args.append("-StartMenu")
     return args
 
 
@@ -178,6 +184,8 @@ class InstallerPanel(tk.Tk):
 
         self.no_verify_var = tk.BooleanVar(value=False)
         self.no_register_var = tk.BooleanVar(value=False)
+        self.shortcut_var = tk.BooleanVar(value=False)
+        self.start_menu_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             options, text="Skip the self-check (-NoVerify)", variable=self.no_verify_var,
         ).grid(row=1, column=1, sticky="w", pady=(6, 0))
@@ -185,6 +193,14 @@ class InstallerPanel(tk.Tk):
             options, text="Install files only, do not register hooks (-NoRegister)",
             variable=self.no_register_var,
         ).grid(row=2, column=1, sticky="w")
+        ttk.Checkbutton(
+            options, text="Create a desktop shortcut for the audit panel",
+            variable=self.shortcut_var,
+        ).grid(row=3, column=1, sticky="w", pady=(6, 0))
+        ttk.Checkbutton(
+            options, text="Create a Start menu shortcut as well",
+            variable=self.start_menu_var,
+        ).grid(row=4, column=1, sticky="w")
 
         buttons = ttk.Frame(self, padding=(10, 8, 10, 0))
         buttons.grid(row=3, column=0, sticky="ew")
@@ -247,6 +263,8 @@ class InstallerPanel(tk.Tk):
             install_dir=self.dir_var.get(),
             no_verify=self.no_verify_var.get(),
             no_register=self.no_register_var.get(),
+            shortcut=self.shortcut_var.get(),
+            start_menu=self.start_menu_var.get(),
         )
         self._start(build_powershell_command(args), "Installing...")
 
