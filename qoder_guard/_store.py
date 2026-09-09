@@ -57,7 +57,7 @@ def resolve_dir() -> Path:
     override = os.environ.get(AUDIT_DIR_ENV)
     if override:
         return Path(override)
-    # Project root = two levels up from this file (qoder_guard/ -> Q_explo/)
+    # Project root = two levels up from this file (qoder_guard/ -> project root)
     return Path(__file__).resolve().parent.parent / "audit_logs"
 
 

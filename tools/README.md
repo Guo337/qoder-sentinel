@@ -22,7 +22,7 @@
 ```powershell
 # 解析一次任务的流式事件，逐条核对 hook 字段
 qodercn -p "你的任务" -o stream-json *> out.jsonl
-python Q_explo\tools\parse_events.py out.jsonl
+python tools\parse_events.py out.jsonl
 ```
 
 协议定义以**官方文档**为准：<https://docs.qoder.com/cli/hooks>
@@ -61,7 +61,7 @@ python Q_explo\tools\parse_events.py out.jsonl
 一键跑法：
 
 ```powershell
-cd Q_explo
+cd qoder-sentinel
 uv sync                      # 首次或依赖变更后：建立 .venv 并锁版本
 uv run python tools\_probe_structural_escapes.py   # 单跑
 

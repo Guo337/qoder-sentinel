@@ -1,6 +1,6 @@
 """Measure: how much code is ours, how much is borrowed, what do we depend on?
 
-Read-only analysis of the Q_explo tree. Writes its report to
+Read-only analysis of the project tree. Writes its report to
 tools/_code_stats_out.txt so PowerShell redirection cannot mangle the encoding.
 """
 from __future__ import annotations

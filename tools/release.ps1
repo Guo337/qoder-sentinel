@@ -54,7 +54,7 @@ $root = Split-Path $PSScriptRoot -Parent
 Push-Location $root
 try {
     $tag = if ($Version.StartsWith("v")) { $Version } else { "v$Version" }
-    $name = "qoder-guard-$tag"
+    $name = "qoder-sentinel-$tag"
     $dist = Join-Path $root "dist"
     $zip = Join-Path $dist "$name.zip"
 

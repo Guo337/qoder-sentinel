@@ -21,6 +21,7 @@ audit_logs/
 # 探针运行产物（每次跑 tools/_probe_*.py 重新生成）
 tools/_probe_*_out.json
 tools/_probe_*_out.txt
+tools/_inspect_out.txt
 
 # Release archives (built by tools/release.ps1)
 dist/

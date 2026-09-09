@@ -1,4 +1,4 @@
-# Qoder 监管层（Q_explo）
+# Qoder 监管层（qoder-sentinel）
 
 为 Qoder CLI 加装外部执行前风险闸门，覆盖五项关键关切：
 
@@ -31,8 +31,8 @@
 ### 安装
 
 ```powershell
-git clone <repo> qoder-guard
-cd qoder-guard
+git clone https://github.com/Guo337/qoder-sentinel.git
+cd qoder-sentinel
 
 uv sync                          # 创建 .venv（.venv 不入库，必须重建）
 python guard\install_hooks.py    # 注册 hooks（写入用户级配置 ~/.qoder-cn/settings.json）
@@ -142,7 +142,7 @@ Hook 类型：`command` / `http` / `prompt` / `agent`。
 ### 2.1 结构
 
 ```
-Q_explo/
+qoder-sentinel/
 ├─ qoder_guard/              监管核心包（纯标准库，零依赖）
 │  ├─ audit.py               审计日志引擎 → audit_logs/qoder_audit.jsonl
 │  ├─ shell_tokens.py        静态分词 + 不透明标记 + 命令名定位
@@ -205,8 +205,8 @@ hook 命令是**安装时写入的绝对路径**。项目移动/改名/换 Pytho
 脚本不存在 → hook 子进程 **exit 2** → **Qoder 把退出码 2 读作 `deny`** →
 **所有工具调用被拦截**，Agent 只能报告"我无法执行任何命令"。
 
-> 早期文档曾写成"Qoder 只在 stderr 打印找不到脚本、任务照常执行、监控静默失效"，
-> **那是错的**，已实测推翻。"静默失效"比"拦死"危险得多——以为在记录，其实什么都没记。
+> 说明：早期文档按"hook 找不到脚本时只往 stderr 打印、任务照常执行"来理解，
+> 后续用一次性 `--config-dir` 实测修正为上面的结论——脚本缺失时确实会拦死一切。
 
 为什么不能自动恢复：hook 是被 Qoder 调起的**外部子进程**。脚本没启动起来时，
 监管层自己的代码根本没机会运行，也就没有"兜底放行"的可能。
@@ -403,13 +403,13 @@ B4（会话白名单，0.5d）
   `uv sync` 自动安装）。其余全部是 Python 标准库。`tree-sitter` 缺失时
   `shell_ast.AVAILABLE` 置 False，自动退回纯正则模式，**监控不中断**
 - 审计日志一律 UTF-8；**PowerShell 5.1 读它必须 `-Encoding UTF8`**，
-  否则中文乱码（本项目踩过，曾被误判为"代码 bug"）
+  否则中文乱码（本项目踩过这个坑）
 - hook 绝不可因自身异常阻断任务：解析失败也要返回 0
 - **hook 必须同时 reconfigure stdin / stdout / stderr 为 UTF-8**：
   Windows 管道下 `sys.stdin.encoding == gbk`，Qoder 发 UTF-8 事件时会
   `UnicodeDecodeError` → hook exit 1 → 审计记录丢失。
   症状极具迷惑性：只有**含非 ASCII 内容**的调用失败（如 Write 传中文源码），
-  ASCII 的 Bash 正常 → 极易误判为"该工具不触发 hook"。
+  ASCII 的 Bash 正常 → 容易被读成"该工具不触发 hook"。
   排查入口：`~/.qoder-cn/logs/sessions/<cwd-hash>/<session-id>/segments/*.jsonl`
   里的 `hook.finished` 事件（看 `success` / `exit_code`）
 - 代码内文案（注释/docstring/日志）**统一用英文**：Windows 控制台 GBK

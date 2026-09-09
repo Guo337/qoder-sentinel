@@ -69,7 +69,7 @@ For each: set `os.environ["QGUARD_AUDIT_DIR"]` to a temp directory **before**
 importing `qoder_guard` modules, and keep the existing monkeypatch assignments
 working (they should be harmless, or replace them with the env var if that is
 cleaner). Every one of these must leave the real
-`Q_explo/audit_logs/qoder_audit.jsonl` byte-identical.
+`audit_logs/qoder_audit.jsonl` byte-identical.
 
 ### 3. A regression test
 

@@ -4,7 +4,7 @@
 
 ## 0. 项目背景（一句话）
 
-`Q_explo` 是一个 **Qoder CLI 的监管层（guard）**：通过 hook 观测/拦截 Qoder 执行的工具调用，
+`qoder-sentinel` 是一个 **Qoder CLI 的监管层（guard）**：通过 hook 观测/拦截 Qoder 执行的工具调用，
 做风险分级与审计。当前处于「阶段 B2：权限分级」。
 
 ## 1. 硬约束（违反即返工）
@@ -154,7 +154,7 @@ class DenyRisky(PolicyBase):
 
 ## 4. 交付方式
 
-1. 用工具**直接创建**这两个文件（路径相对工程根 `Q_explo/`）
+1. 用工具**直接创建**这两个文件（路径相对工程根 `qoder-sentinel/`）
 2. 完成后**回报**：
    - 两个文件的绝对路径
    - 各自的行数

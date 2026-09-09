@@ -28,7 +28,7 @@ from . import _store
 
 AUDIT_DIR_ENV = _store.AUDIT_DIR_ENV
 
-# Project root = two levels up from this file (qoder_guard/ -> Q_explo/)
+# Project root = two levels up from this file (qoder_guard/ -> project root)
 ROOT = Path(__file__).resolve().parent.parent
 AUDIT_DIR = ROOT / "audit_logs"
 AUDIT_FILE = AUDIT_DIR / "qoder_audit.jsonl"  # legacy path, kept for export
