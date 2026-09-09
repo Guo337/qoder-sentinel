@@ -1,8 +1,8 @@
 # Qoder 监管层（Q_explo）
 
-把不可信的 Qoder Agent 内核装进"外部监管层"，补上它五项基本缺失：
+为 Qoder CLI 加装外部执行前风险闸门，覆盖五项关键关切：
 
-| # | 缺失项 | 监管层对策 | 当前状态 |
+| # | 关切项 | 监管层对策 | 当前状态 |
 |---|--------|-----------|---------|
 | 1 | 无执行前风险评估 | `risk.py` 规则引擎 + `PreToolUse` hook | ✅ 阶段 A 已实现（仅记录）<br>🔜 阶段 B 接入拦截 |
 | 2 | 无命令效果预测 | 影响面预分析（dry-run 类） | ⬜ 阶段 C |
@@ -61,7 +61,7 @@ python guard\install_hooks.py --remove   # 移除 hooks（同样会先备份）
 
 以下结论全部来自实测，不是推测。它们是阶段 B 设计的依据。
 
-### 1.1 CLI 原生就有的能力（纠正"权限分级缺失"的误判）
+### 1.1 CLI 原生就有的能力
 
 ```
 --permission-mode <mode>    default | accept_edits | bypass_permissions | dont_ask | auto
