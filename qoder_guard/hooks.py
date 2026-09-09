@@ -33,6 +33,7 @@ import json
 import sys
 
 from . import audit, review
+from . import sensitive as sensitive_mod
 from .policy import Decision, DenyRisky, NeverAsk, PolicyBase
 from .risk import assess, describe
 from .shell_tokens import has_opaque, tokenize
@@ -108,6 +109,54 @@ def _fingerprint_text(tool_input: object) -> str:
             _pick_fields(tool_input, _TEXT_KEYS),
         ) if part
     )
+
+
+# The field that carries a command line. Secrets here are about to be handed to
+# a process (and to its logs), so they are the ones we refuse outright. Text in
+# other fields (e.g. Write's `content`) is the user's own file payload and is
+# only recorded, never used to block: blocking there would reject legitimate
+# fixtures and documentation that quote example credentials.
+_COMMAND_KEYS = ("command",)
+
+# Highest severity present, or None when nothing was found.
+_SEVERITY_RANK = {
+    sensitive_mod.SEVERITY_LOW: 0,
+    sensitive_mod.SEVERITY_MEDIUM: 1,
+    sensitive_mod.SEVERITY_HIGH: 2,
+}
+
+
+def _scan_sensitive(tool_input: object) -> tuple[tuple, str | None]:
+    """Scan a tool call for credentials/PII.
+
+    Returns (hits, max_severity). `hits` are limited to the command field so the
+    caller can tell whether the secret is about to be executed; the rest of the
+    text is still scanned for the audit trail.
+    """
+    command = _pick_fields(tool_input, _COMMAND_KEYS)
+    hits = sensitive_mod.scan(command) if command else ()
+    max_sev: str | None = None
+    for h in hits:
+        if max_sev is None or _SEVERITY_RANK.get(h.severity, 0) > _SEVERITY_RANK.get(max_sev, 0):
+            max_sev = h.severity
+    return hits, max_sev
+
+
+def _redact_input(tool_input: object) -> object:
+    """Return tool_input with credential values masked before it is persisted.
+
+    The audit log is an evidence store, not a credential store: writing a live
+    token into SQLite would turn the guard itself into the leak. Only string
+    leaves are rewritten; the shape of the event is preserved.
+    """
+    if isinstance(tool_input, str):
+        return sensitive_mod.redact(tool_input)
+    if isinstance(tool_input, dict):
+        return {
+            k: (sensitive_mod.redact(v) if isinstance(v, str) else v)
+            for k, v in tool_input.items()
+        }
+    return tool_input
 
 
 def _resolve_review(tool_name: str, text: str, reason: str | None,
@@ -189,9 +238,21 @@ def _handle(raw: str, *, block_high_risk: bool = False) -> int:
         if _text.strip():
             opaque = has_opaque(tokenize(_text))
 
+    # Sensitive data in a command line: a live credential is about to be handed
+    # to a process. This is independent of the risk grade -- `export K=<token>`
+    # is a harmless-looking command that leaks a secret -- so it is decided
+    # before the policy layer and only when blocking is enabled.
+    sensitive_hits: tuple = ()
+    sensitive_severity: str | None = None
+    if hook_event in tool_events:
+        sensitive_hits, sensitive_severity = _scan_sensitive(tool_input)
+
     # Stage B decision: policy layer decides allow/ask/deny (analyzer only scores, policy only decides)
     policy: PolicyBase = BLOCK_POLICY if block_high_risk else DEFAULT_POLICY
     decision = policy.decide(level.value if level else None, has_opaque=opaque)
+    if block_high_risk and sensitive_severity == sensitive_mod.SEVERITY_HIGH:
+        # An outright secret beats a risk grade: never execute it.
+        decision = Decision.DENY
     review_id: str | None = None
     # Only blockable events may touch the review queue. A PostToolUse event for
     # the same command must not enqueue a request: the command already ran, and
@@ -215,10 +276,14 @@ def _handle(raw: str, *, block_high_risk: bool = False) -> int:
         "agent_id": event.get("agent_id") or event.get("agentId"),
         "permission_mode": event.get("permission_mode"),
         "tool": tool_name or "(none)",
-        "tool_input": tool_input if hook_event in tool_events else None,
+        # Credentials are masked before persistence: the audit log is evidence,
+        # not a secret store.
+        "tool_input": _redact_input(tool_input) if hook_event in tool_events else None,
         "risk": level.value if level else None,
         "risk_reason": reason,
         "opaque": opaque,
+        "sensitive": [h.kind for h in sensitive_hits],
+        "sensitive_severity": sensitive_severity,
         "review_id": review_id,
         "decision": decision.value,
         "hook_blocked": decision is Decision.DENY,
@@ -231,6 +296,13 @@ def _handle(raw: str, *, block_high_risk: bool = False) -> int:
                 f"Review id: {review_id}\n"
                 f"To approve, run: python guard/review.py approve {review_id}\n"
                 f"To reject, run:  python guard/review.py deny {review_id}"
+            )
+        elif sensitive_severity == sensitive_mod.SEVERITY_HIGH:
+            kinds = ", ".join(sorted({h.kind for h in sensitive_hits}))
+            msg = (
+                f"DENIED by guard layer: sensitive data in command line "
+                f"({kinds}). Remove the credential or read it from the environment "
+                f"instead of inlining it."
             )
         else:
             msg = f"DENIED by guard layer: {describe(level)} -- {reason}"
