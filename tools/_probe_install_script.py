@@ -23,6 +23,8 @@ tools/_probe_project_install.py for the settings-mutation contract.
   9. it never uses /MIR, which would delete audit_logs and .venv
  10. it judges native commands by exit code, not by stderr
  11. the README points at it
+ 12. no function uses a state changing verb, which would demand ShouldProcess
+ 13. the Write-Host rule is suppressed with a justification
 
 Run:  python tools/_probe_install_script.py   (exit 0 = pass)
 """
@@ -134,6 +136,29 @@ def main() -> int:
         readme = README.read_text(encoding="utf-8")
         check("readme_mentions_installer", "install.ps1" in readme,
               "README does not mention install.ps1")
+
+    # 12. Approved verb, and no state changing verb. "Refresh" is not in the
+    #     approved list; "Update" is approved but PSScriptAnalyzer then demands
+    #     ShouldProcess support. A getter avoids both.
+    defined = re.findall(r"^function\s+([A-Za-z]+-[A-Za-z]+)", text, re.MULTILINE)
+    check("functions_found", bool(defined), "no functions parsed")
+    state_changing = [f for f in defined if f.split("-")[0] in
+                      ("Update", "Set", "New", "Remove", "Start", "Stop", "Restart",
+                       "Enable", "Disable", "Add", "Clear", "Reset", "Install")]
+    check("no_state_changing_verbs", not state_changing,
+          f"{state_changing} would require ShouldProcess support")
+    check("no_should_process_needed", "SupportsShouldProcess" not in text,
+          "a confirmation prompt is not wanted in this installer")
+    check("uses_get_fresh_path", "Get-FreshPath" in text and "Refresh-Path" not in text,
+          "PATH refresh helper was renamed or regressed")
+
+    # 13. the one suppression must be justified and narrow
+    check("writehost_suppressed",
+          "PSAvoidUsingWriteHost" in text and "Justification" in text,
+          "the Write-Host rule is not suppressed with a justification")
+    check("suppression_is_narrow",
+          text.count("SuppressMessageAttribute") == 1,
+          "more suppressions than expected")
 
     return report()
 

@@ -40,6 +40,12 @@
     .\install.ps1 -Uninstall
 #>
 [CmdletBinding()]
+# Write-Host is deliberate: this is an interactive installer whose coloured
+# progress output is the product. Write-Output would put it on the pipeline and
+# drop the colour.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSAvoidUsingWriteHost', '',
+    Justification = 'Interactive installer; coloured console output is intended.')]
 param(
     [string]$Dir = "",
     [switch]$Uninstall,
@@ -82,9 +88,13 @@ function Info {
     Write-Host "    $Message"
 }
 
-function Refresh-Path {
-    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-                [Environment]::GetEnvironmentVariable("Path", "User")
+# A getter rather than an Update- function: Update is treated as state
+# changing, which would require ShouldProcess support. Reading the value and
+# letting the caller assign keeps the analyzer quiet without adding a
+# confirmation prompt nobody wants here.
+function Get-FreshPath {
+    return [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+           [Environment]::GetEnvironmentVariable("Path", "User")
 }
 
 Write-Host ""
@@ -202,7 +212,7 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
             winget install --id astral-sh.uv --exact --silent `
                 --accept-source-agreements --accept-package-agreements
         }
-        Refresh-Path
+        $env:Path = Get-FreshPath
         if ($rc -ne 0 -or -not (Get-Command uv -ErrorAction SilentlyContinue)) {
             Fail "Could not install uv automatically. Install it from https://docs.astral.sh/uv/ and re-run."
         }
