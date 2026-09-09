@@ -35,6 +35,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# git and gh write progress ("To https://...", "[deleted] ...") to stderr. With
+# $ErrorActionPreference = "Stop" PowerShell turns that into a terminating
+# NativeCommandError, which aborted this script after a push that had in fact
+# succeeded. Success is decided by $LASTEXITCODE, never by whether stderr was
+# non-empty.
 $root = Split-Path $PSScriptRoot -Parent
 Push-Location $root
 try {
@@ -70,7 +75,7 @@ try {
     if (Test-Path $zip) { Remove-Item $zip -Force }
 
     # Export tracked files only (git archive honours .gitignore and excludes .git).
-    git archive --format=zip --prefix="$name/" -o $zip HEAD
+    git archive --format=zip --prefix="$name/" -o $zip HEAD 2>$null
     if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
 
     $size = (Get-Item $zip).Length
@@ -81,14 +86,15 @@ try {
         return
     }
 
-    git tag -a $tag -m $tag
+    git tag -a $tag -m $tag 2>$null
     if ($LASTEXITCODE -ne 0) { throw "git tag failed" }
 
-    git push origin $tag
+    git push origin $tag 2>&1 | ForEach-Object { Write-Verbose "$_" }
     if ($LASTEXITCODE -ne 0) { throw "git push failed (is HTTPS_PROXY set?)" }
 
     if (-not $Notes) { $Notes = "Source archive for $tag." }
-    gh release create $tag $zip --title $tag --notes $Notes
+    gh release create $tag $zip --title $tag --notes $Notes 2>&1 |
+        ForEach-Object { Write-Verbose "$_" }
     if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
 
     Write-Output ("published release {0}" -f $tag)
