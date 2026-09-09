@@ -8,7 +8,7 @@
 | 2 | 命令效果预测 | 影响面预分析（dry-run 类） | ⬜ 阶段 C |
 | 3 | 可观测性 / 现场干预 | `stream-json` 事件流转述 + 审计日志 | ✅ 阶段 A 已实现 |
 | 4 | 权限分级控制 | `permission-mode` + 工具黑白名单 + 风险分级 | ✅ 已实测可行 |
-| 5 | 执行审计面板 | `audit_view.py` + `qoder_audit.jsonl` | ✅ 阶段 A 已实现 |
+| 5 | 执行审计面板 | `audit_view.py`（CLI）+ `audit_gui.py`（GUI）+ `qoder_audit.jsonl` | ✅ 阶段 A 已实现 |
 
 ---
 
@@ -30,6 +30,19 @@
 
 ### 安装
 
+**一键安装（推荐，不需要 git）：**
+
+```powershell
+irm https://raw.githubusercontent.com/Guo337/qoder-sentinel/main/install.ps1 | iex
+```
+
+它会下载**最新 release**、装到 `%LOCALAPPDATA%\qoder-sentinel`、创建环境、
+注册 hooks，最后跑一遍自检。已经装过就再跑一次即可**升级**（不会动
+`audit_logs\` 和 `.venv\`）。
+
+<details>
+<summary>手动安装（git clone，适合要改代码的人）</summary>
+
 ```powershell
 git clone https://github.com/Guo337/qoder-sentinel.git
 cd qoder-sentinel
@@ -39,6 +52,22 @@ python guard\install_hooks.py    # 注册 hooks（写入用户级配置 ~/.qoder
 python guard\verify_setup.py     # 自检：配置 / 风险引擎 / 链路
 python guard\run_task.py -- "总结当前目录结构"
 ```
+
+在 checkout 目录里直接跑 `.\install.ps1` 也行：它检测到 `pyproject.toml` 就
+**就地安装**，不会另外复制一份。
+
+</details>
+
+`install.ps1` 参数：
+
+| 参数 | 作用 |
+|------|------|
+| `-Dir <路径>` | 指定安装目录（默认 `%LOCALAPPDATA%\qoder-sentinel`） |
+| `-NoVerify` | 跳过安装后的自检 |
+| `-Uninstall` | 移除注册的 hooks（保留文件） |
+
+uv 缺失时脚本会尝试用 `winget` 自动安装；两者都没有则明确报错并给出下载地址，
+不会留下半装状态。
 
 ### 放在哪个目录都能用吗？
 
@@ -184,6 +213,8 @@ qoder-sentinel/
 │  ├─ install_project.py     项目级安装器（写目标项目 .qoder/settings.json）
 │  ├─ run_task.py            受监管任务驱动（stream-json 事件转述）
 │  ├─ audit_view.py          审计面板（时间线/风险分布/会话筛选）
+│  ├─ audit_gui.py           审计面板图形界面（只读筛选 + 原始记录 + 导出）
+│  ├─ install_gui.py         安装器图形界面（调用 install.ps1，输出实时回显）
 │  ├─ review.py              UNKNOWN 审批 CLI（list/show/approve/deny/stats）⭐ 新增
 │  └─ verify_setup.py        端到端自检 ⭐ 新增
 ├─ settings/qoder.settings.json   hooks 注册模板
@@ -213,6 +244,12 @@ python guard\audit_view.py              # 最近 20 条时间线 + 风险分布
 python guard\audit_view.py --risk high  # 只看高危
 python guard\audit_view.py --session <会话ID>
 python guard\audit_view.py --json       # 原始 JSON
+
+# 5) 图形界面（只读）
+python guard\audit_gui.py               # 按风险/工具/会话/关键词筛选，点行看原始记录
+
+# 6) 图形界面（安装器，等价于 install.ps1）
+python guard\install_gui.py             # 点按钮安装/升级/卸载，输出实时回显
 ```
 
 ### 2.3 启用拦截（阶段 B 前置，已验证）

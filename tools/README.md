@@ -68,6 +68,9 @@ python tools\parse_events.py out.jsonl
 | `_probe_sensitive.py` | 敏感数据扫描器单元契约（17 规则、span 合法、去重、脱敏往返、10 误报 / 6 真阳性、ReDoS 与吞吐） | `all checks passed` |
 | `_probe_sensitive_hook.py` | 敏感数据接入 hook 的端到端契约（HIGH 拒绝 / observe 放行 / 审计脱敏 / `Write.content` 不拦但脱敏 / 原有危险判定不受影响） | `all checks passed` |
 | `_probe_project_install.py` | 项目级安装器契约（11 组 30 项，全部在临时目录内完成） | `all checks passed` |
+| `_probe_install_script.py` | `install.ps1` 契约（存在性 / PowerShell 解析 / 纯 ASCII / 参数 / 双来源 / uv 引导 / PATH 刷新 / 注册与自检 / 不用 `/MIR` / 按退出码判定 / README 提及） | `all checks passed` |
+| `_probe_audit_gui.py` | `guard/audit_gui.py` 纯逻辑契约（摘要字段优先级 / 截断与换行 / 过滤恒等与 AND / None 归入 unknown / 会话子串 / 大小写无关搜索 / 排序与并列风险 / 下拉项 / 只读不写审计）；加 `--smoke` 会真开窗口做一次布局检查 | `all checks passed` |
+| `_probe_install_gui.py` | `guard/install_gui.py` 纯逻辑契约（参数省略与顺序 / 开关一对一 / hook 检查命令 / PowerShell 绕过与非交互 / 设置文件探测 / 状态字段 / 摘要渲染）；加 `--smoke` 会真开窗口 | `all checks passed` |
 | `_count_rules.py` | 规则条数统计（`risk.py` 26 条 + `sensitive.py` 17 类） | 正常打印计数 |
 | `_compare_harness.py` | 官方 better-harness 清单对比 | 正常打印差异 |
 | `_probe_append_mechanism.py` | 历史记录：对比追加写原语（text / oswrite / msvcrt） | 仅 msvcrt 无丢失 |
@@ -97,7 +100,9 @@ foreach($f in @("qoder_guard\_store.py","qoder_guard\shell_tokens.py",
   "tools\_probe_concurrency.py","tools\_probe_audit_concurrency.py",
   "tools\_probe_audit_isolation.py","tools\_probe_sensitive.py",
   "tools\_probe_sensitive_hook.py","tools\_count_rules.py",
-  "tools\_compare_harness.py","tools\_probe_project_install.py")){ uv run python $f *> $null
+  "tools\_compare_harness.py","tools\_probe_project_install.py",
+  "tools\_probe_install_script.py","tools\_probe_audit_gui.py",
+  "tools\_probe_install_gui.py")){ uv run python $f *> $null
   Write-Output ("{0,-38} exit={1}" -f $f,$LASTEXITCODE) }
 ```
 
