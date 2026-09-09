@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# uv：虚拟环境不入库，uv.lock 必须入库（锁死依赖版本）
+.python-version
+uv.toml
+
+# Qoder CLI 本地状态（会话/权限等，勿入库）
+.qoder/
+
+# 监管层运行产物（审计日志按运行生成）
+audit_logs/
+
+# 日志/临时
+*.log
+*.bak
+
+# 探针运行产物（每次跑 tools/_probe_*.py 重新生成）
+tools/_probe_*_out.json
+tools/_probe_*_out.txt
+
+# Release archives (built by tools/release.ps1)
+dist/

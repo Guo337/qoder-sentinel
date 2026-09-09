@@ -1,0 +1,28 @@
+[project]
+name = "qoder-guard"
+version = "0.1.0"
+description = "Pre-execution risk gate for Qoder CLI tool calls"
+requires-python = ">=3.11"
+dependencies = [
+    # Structural shell parsing. A regex over raw text cannot see shell
+    # structure, so `(rm -rf /)`, `if ...; then rm -rf /; fi` and
+    # `FOO=bar rm -rf /` were graded LOW (measured 2026-09-08: 13 of 20
+    # structural commands escaped). MIT licensed; ships prebuilt wheels for
+    # Windows, so no compiler is needed.
+    "tree-sitter>=0.26.0",
+    "tree-sitter-bash>=0.25.1",
+]
+
+[project.optional-dependencies]
+# Everything below is development-only and must never be needed at hook time.
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.uv]
+# The guard is a CLI hook, not a library: no build backend needed.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tools", "guard"]
+python_files = ["_probe_*.py", "verify_*.py"]
