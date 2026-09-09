@@ -1,6 +1,6 @@
 # Qoder 监管层（qoder-sentinel）
 
-为 Qoder CLI 加装外部执行前风险闸门，覆盖五项关键关切：
+为 Qoder CLI 与 Qoder CN IDE 加装外部执行前风险闸门，覆盖五项关键关切：
 
 | # | 关切项 | 监管层对策 | 当前状态 |
 |---|--------|-----------|---------|
@@ -18,6 +18,10 @@
 > 跨平台 Python 标准库，但 Qoder CN CLI 的当前安装渠道、`run_task.py` 的
 > Qoder 进程启动逻辑以及回归命令仍依赖 Windows。待 Qoder 提供 Linux/macOS
 > CLI 后，再扩展其他平台支持。
+>
+> **接入形态：Qoder CLI 与 Qoder CN IDE 均已实测生效。** 两者共用同一份用户级
+> 配置 `~/.qoder-cn/settings.json`，因此 IDE 聊天面板发起的工具调用同样经过本
+> 监管层（实测证据见 1.6）。
 
 ### 前置条件
 
@@ -25,6 +29,7 @@
 |------|------|------|
 | Python | ≥ 3.11 | 见 `pyproject.toml` 的 `requires-python` |
 | Qoder CLI | 1.1.45（实测版本） | **必须已安装并登录**；hook 协议按此版本实测得出 |
+| Qoder CN IDE | 1.29.0（实测版本） | 可选。与 CLI 共用同一份用户级配置，无需额外安装（实测见 1.6） |
 | uv | 较新版本即可 | 推荐。hook 用它跑 `uv run --project`，`.venv` 被删会自动重建；没有 uv 则回退当前解释器（退化为正则模式） |
 | tree-sitter | `uv sync` 自动安装 | 结构化命令解析。有预编译 wheel，Windows 无需编译器 |
 
@@ -79,8 +84,8 @@ uv 缺失时脚本会尝试用 `winget` 自动安装；两者都没有则明确�
 ### 放在哪个目录都能用吗？
 
 **能。** 注册写的是**用户级**配置 `~/.qoder-cn/settings.json`，装完之后在**任何
-目录**里跑 `qodercn` 都会受监管（实测见 1.5）。项目文件夹本身不需要放在特定
-位置，也不需要「必须在项目目录内启动」。
+目录**里跑 `qodercn` 都会受监管（实测见 1.5）；**Qoder CN IDE 的聊天面板同样生效**
+（实测见 1.6）。项目文件夹本身不需要放在特定位置，也不需要「必须在项目目录内启动」。
 
 唯一约束：**搬家 / 改名 / 换 Python 解释器后，要重跑一次**
 `python guard\install_hooks.py`（原因见 2.4）。
@@ -198,6 +203,31 @@ Hook 类型：`command` / `http` / `prompt` / `agent`。
 实测外部 Agent 在终端跑 `qodercn -p ...` 时，审计日志完整记录了
 每次 `SessionStart` / `PreToolUse` / `PostToolUse`，参数完整。
 即：监管层保护的是 **Qoder 进程**，不论谁驱动它。
+
+### 1.6 IDE 路径同样生效（实测 2026-09-09）
+
+在 Qoder CN IDE 1.29.0 的聊天面板里让 Agent 执行
+`echo SENTINEL_IDE_PROBE_20260909`，审计库新增 4 条记录
+（`SessionStart` ×2、`PreToolUse`、`PostToolUse`），`tool_input` 完整：
+
+```json
+{"command": "echo SENTINEL_IDE_PROBE_20260909", "is_background": false}
+```
+
+风险分级同样生效：`risk=low`、`risk_reason=read-only command`、`decision=allow`。
+
+**判定依据**：审计记录的 `session_id`（`62897c09-…`）与 IDE 自身日志
+`%APPDATA%\QoderCN\logs\<时间>\window1\agent.log` 中
+`[ChatSessionService] ACP stream completed` 的 `sessionId` **完全一致**，
+证明该记录确实来自 IDE 会话，而非终端里的 CLI 进程。
+
+字段差异：IDE 路径下 `permission_mode` 为 `null`（CLI 为 `acceptEdits`），
+其余字段与 CLI 完全一致。
+
+> **历史说明**：旧版 IDE（`Programs\Qoder CN`，Agent SDK 架构）启动 Agent 时
+> 会传 `--settings {"disableAllHooks":true}`，**显式禁用全部 hook**。
+> 现版 `Qoder CN IDE` 1.29.0 改用 ACP 架构，不再传该参数，监管层因而可用。
+> 若日后 IDE 回退到 Agent SDK 架构，需重新验证。
 
 ---
 
@@ -557,7 +587,7 @@ B4（会话白名单，0.5d）
 
 **本项目的短板**（相比 cc-safety-net / shellfirm）：
 
-- 仅支持 Windows，仅面向 Qoder CLI
+- 仅支持 Windows；接入形态为 Qoder CLI + Qoder CN IDE
 - 无 GUI、无规则库、无团队策略共享，无 MCP 暴露
 - 危险模式数量远少于 shellfirm
 
